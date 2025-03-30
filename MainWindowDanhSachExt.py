@@ -1,6 +1,13 @@
+import os
+import sys
+import webbrowser
+import pandas as pd
+import plotly.express as px
+import numpy as np
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QMainWindow, QTableWidgetItem, QMessageBox, QHeaderView, QTableWidget, QCheckBox, QWidget, QHBoxLayout
+    QApplication, QMainWindow, QTableWidgetItem, QMessageBox, QHeaderView, QCheckBox
 )
 
 from Spydecat_K24406H.libs.Dataconnector import DataConnector
@@ -24,6 +31,7 @@ class MainWindowDanhSachExt(QMainWindow, Ui_MainWindow_danh_sach):
         self.actionExport_excel.triggered.connect(self.export_to_excel)
         self.actionReturn.triggered.connect(self.return_mainwindow)
         self.actionDelete_visitors.triggered.connect(self.delete_selected_customers)
+        self.actionPie_chart.triggered.connect(self.create_pie_chart)
 
     def setupTable(self):
         """Thiết lập bảng với 7 cột, cột cuối chứa checkbox."""
@@ -35,8 +43,6 @@ class MainWindowDanhSachExt(QMainWindow, Ui_MainWindow_danh_sach):
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
     def add_checkbox_to_row(self, row):
-
-
         """Thêm checkbox vào cột cuối cùng của hàng."""
         checkbox = QCheckBox()
         checkbox.setStyleSheet("margin-left:50%;")  # Căn giữa checkbox
@@ -52,9 +58,9 @@ class MainWindowDanhSachExt(QMainWindow, Ui_MainWindow_danh_sach):
                 if checkbox and checkbox.isChecked():
                     selected_rows.append(row)
 
-        if not selected_rows:
-            QMessageBox.warning(self, "Cảnh báo", "Vui lòng chọn ít nhất một khách hàng để xóa!")
-            return
+        #if not selected_rows:
+            #QMessageBox.warning(self, "Cảnh báo", "Vui lòng chọn ít nhất một khách hàng để xóa!")
+            #return
 
         reply = QMessageBox.question(
             self, "Xác nhận", "Bạn có chắc chắn muốn xóa khách hàng đã chọn?",
@@ -107,3 +113,61 @@ class MainWindowDanhSachExt(QMainWindow, Ui_MainWindow_danh_sach):
         if self.parent:
             self.parent.show()
         self.close()
+
+    def create_pie_chart(self):
+        """Tạo biểu đồ thống kê giới tính và nhóm tuổi của khách hàng trên trình duyệt."""
+        file_path = r"D:\Spydecat_Doancuoiky\Spydecat_K24406H\dataset\danhsach_visitors.xlsx"
+
+        try:
+            df = pd.read_excel(file_path)
+            df['Giới tính'] = df['Giới tính'].str.strip().str.capitalize()
+            df['Năm sinh'] = pd.to_numeric(df['Năm sinh'], errors='coerce')
+
+            conditions = [
+                df['Năm sinh'].between(2007, 2009, inclusive='both'),
+                df['Năm sinh'].notna()
+            ]
+            choices = ['Cấp 3 (2007-2009)', 'Khác']
+            df['Nhóm tuổi'] = np.select(conditions, choices, default='Không xác định')
+
+            stats = df.groupby(['Giới tính', 'Nhóm tuổi'], observed=True).size().reset_index(name='Số lượng')
+            stats['Tỷ lệ'] = (stats['Số lượng'] / stats['Số lượng'].sum() * 100).round(1)
+
+            color_palette = {
+                'Nam': '#4E79A7',
+                'Nữ': '#F28E2B',
+                'Cấp 3 (2007-2009)': '#59A14F',
+                'Khác': '#B07AA1',
+                'Không xác định': '#FF9DA7'
+            }
+
+            fig = px.sunburst(
+                stats,
+                path=['Giới tính', 'Nhóm tuổi'],
+                values='Số lượng',
+                title='<b>PHÂN BỔ KHÁCH ĐÃ TRUY CẬP THEO GIỚI TÍNH VÀ ĐỘ TUỔI</b>',
+                color='Nhóm tuổi',
+                color_discrete_map=color_palette,
+                width=800,
+                height=800,
+                branchvalues='total'
+            )
+
+            fig.update_traces(
+                textinfo="label+percent parent+value",
+                texttemplate='<b>%{label}</b><br>%{percentParent:.1f}% (%{value})',
+                marker=dict(line=dict(color='white', width=1))
+            )
+
+            # Lưu biểu đồ dưới dạng file HTML
+            output_file = "temp_chart.html"
+            fig.write_html(output_file)
+
+            # Mở file HTML trong trình duyệt
+            webbrowser.open("file://" + os.path.abspath(output_file))
+
+        except Exception as e:
+            print(f"Lỗi: {e}")
+
+
+
