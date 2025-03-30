@@ -46,6 +46,17 @@ class Ui_MainWindow_FAQ(object):
         self.verticalLayout.setObjectName("verticalLayout")
         self.listWidgetcauhoi = QtWidgets.QListWidget(parent=self.groupBox)
         self.listWidgetcauhoi.setObjectName("listWidgetcauhoi")
+        self.listWidgetcauhoi.setStyleSheet("""
+            QListWidget::item {
+                padding: 5px;
+                color: white;
+            }
+            QListWidget::item:selected {
+                background-color: white;
+                color: black;
+                font-weight: bold;
+            }
+        """)
         self.verticalLayout.addWidget(self.listWidgetcauhoi)
         self.groupBox_2 = QtWidgets.QGroupBox(parent=self.centralwidget)
         self.groupBox_2.setGeometry(QtCore.QRect(570, 80, 441, 681))
